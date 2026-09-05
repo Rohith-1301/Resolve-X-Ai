@@ -1,4 +1,17 @@
-const API_BASE = 'http://127.0.0.1:8000/api';
+const getApiBase = (): string => {
+  const envUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  if (envUrl) {
+    return envUrl.endsWith('/api') ? envUrl : `${envUrl.replace(/\/+$/, '')}/api`;
+  }
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return window.location.port === '5173' ? 'http://127.0.0.1:8000/api' : '/api';
+    }
+  }
+  return '/api';
+};
+
+const API_BASE = getApiBase();
 
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${endpoint}`, {
