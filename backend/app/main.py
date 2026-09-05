@@ -64,14 +64,18 @@ def health_check():
         'backend': 'Python FastAPI'
     }
 
-# Mount Frontend static build so port 8000 also serves the full website UI directly!
+# Mount Frontend static build so backend also serves the full website UI directly!
 import os
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+# Check for bundled static folder (inside backend/app/static) or frontend/dist
+internal_static = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static'))
 frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'dist'))
-if os.path.exists(frontend_dist):
-    assets_dir = os.path.join(frontend_dist, 'assets')
+dist_dir = internal_static if os.path.exists(internal_static) else (frontend_dist if os.path.exists(frontend_dist) else None)
+
+if dist_dir and os.path.exists(dist_dir):
+    assets_dir = os.path.join(dist_dir, 'assets')
     if os.path.exists(assets_dir):
         app.mount('/assets', StaticFiles(directory=assets_dir), name='assets')
 
@@ -79,10 +83,19 @@ if os.path.exists(frontend_dist):
     def serve_spa(full_path: str):
         if full_path.startswith('api/') or full_path == 'health' or full_path.startswith('docs') or full_path.startswith('openapi.json'):
             raise HTTPException(status_code=404, detail='API route not found')
-        file_path = os.path.join(frontend_dist, full_path)
+        file_path = os.path.join(dist_dir, full_path)
         if os.path.exists(file_path) and os.path.isfile(file_path):
             return FileResponse(file_path)
-        return FileResponse(os.path.join(frontend_dist, 'index.html'))
+        return FileResponse(os.path.join(dist_dir, 'index.html'))
+else:
+    @app.get('/')
+    def root():
+        return {
+            'service': 'ResolveX Enterprise AI Customer Support',
+            'status': 'healthy',
+            'docs': '/docs',
+            'health': '/health'
+        }
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
